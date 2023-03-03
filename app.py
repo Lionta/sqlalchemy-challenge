@@ -28,6 +28,7 @@ station = Base.classes.station
 
 #   calculating 1 year before the data
 year_before = dt.date(2017, 8 ,23) - dt.timedelta(days=365)
+final_date = dt.date(2017, 8 ,23)
 
 app = Flask(__name__)
 
@@ -43,7 +44,8 @@ def welcome():
         f"Available Routes:<br/>"
         f"/api/v1.0/precipitation<br/>"
         f"/api/v1.0/stations<br/>"
-        f"/api/v1.0/tobs"
+        f"/api/v1.0/tobs<br/>"
+        f"api/v1.0/start/2017-8-23<br/>"
     )
 
 #   Returns json with the date as the key and the value as the precipitation (3 points)
@@ -107,8 +109,63 @@ def tobs():
     
     return jsonify(tobs_data)
 
+@app.route("/api/v1.0/<start>")
+def start(start):
+    #splitting the input variable start date by -
+    start = start.split('-')
+    #creating the datetime variable
+    year = start[0]
+    month = start[1]
+    day = start[2]
+    start_date = dt.date(year,month,day)
+    #this didn't specify to jsonify the data so I didn't. calling my helper function
+    return temp_data_func(start_date, final_date)
 
 
+
+@app.route("/api/v1.0/<start>/<end>")
+def start_end(start, end):
+    #splitting the input variable start date by -
+    start = start.split('-')
+    #creating the y,m,d variables
+    s_year = start[0]
+    s_month = start[1]
+    s_day = start[2]
+
+
+    #splitting the input variable start date by -
+    end = start.split('-')
+    #creating the y,m,d variables
+    e_year = end[0]
+    e_month = end[1]
+    e_day = end[2]
+
+    #creating datetime objects
+    start_date = dt.date(s_year, s_month, s_day)
+    end_date = dt.date(e_year, e_month, e_day)
+
+    #calling my helper function
+    return temp_data_func(start_date, end_date)
+
+
+
+
+#created a helper function to get min, avg, max
+def temp_data_func(start_date, end_date):
+    session = Session(engine)
+    lowest = session.query(func.min(measurement.tobs)).filter(end_date>=start_date).first()
+    highest = session.query(func.max(measurement.tobs)).filter(end_date>=start_date).first()
+    average = session.query(func.avg(measurement.tobs)).filter(end_date>=start_date).first()
+    session.close()
+
+    temp_data =[
+        {'TMIN':lowest},
+        {'TAVG':average},
+        {'TMAX':highest}
+            
+    ]
+
+    return temp_data
 
 if __name__ == "__main__":
     app.run(debug=True)
